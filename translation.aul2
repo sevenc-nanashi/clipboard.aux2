@@ -1,0 +1,13 @@
+[clipboard.aux2]
+; TODO: この2つはなぜか動かない...
+[clipboard.aux2] 貼り付け=[clipboard.aux2] Paste
+[clipboard.aux2] ファイルの保存先を指定=[clipboard.aux2] Set file save location
+
+クリップボードの初期化に失敗しました=Failed to initialize clipboard
+画像保存用フォルダの作成に失敗しました=Failed to create image save folder
+クリップボードから取得した画像データの処理に失敗しました=Failed to process image data from clipboard
+画像ファイルの保存に失敗しました=Failed to save image file
+クリップボードに画像またはテキストが見つかりません=No image or text found on the clipboard
+
+保存先フォルダを選択=Select destination folder
+保存先の設定に失敗しました=Failed to set destination folder

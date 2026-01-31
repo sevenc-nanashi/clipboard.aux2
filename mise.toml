@@ -1,0 +1,4 @@
+[tools]
+"cargo:cargo-about" = "latest"
+"cargo:cargo-edit" = "latest"
+ruby = "4"
