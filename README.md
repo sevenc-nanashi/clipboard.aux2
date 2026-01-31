@@ -1,10 +1,10 @@
-# vintage.auf2
+# clipboard.aux2
 
-音声を昔のビデオっぽくするAviUtl2のフィルタープラグイン。
+画像・テキストをクリップボードから直接貼り付けるAviUtl2プラグイン。
 
 ## インストール
 
-[Releases](https://github.com/sevenc-nanashi/vintage.auf2/releases/latest)から`vintage-v{{version}}.au2pkg.zip`をダウンロードし、AviUtl2のプレビューにドラッグ&ドロップしてください。
+[Releases](https://github.com/sevenc-nanashi/clipboard.auf2/releases/latest)から`clipboard-v{{version}}.au2pkg.zip`をダウンロードし、AviUtl2のプレビューにドラッグ&ドロップしてください。
 
 ## ライセンス
 

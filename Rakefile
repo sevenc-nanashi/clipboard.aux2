@@ -16,7 +16,7 @@ task :release => [:build] do
   mkdir "release"
   release_md = File.read("./release.md")
   File.write("./release/README.md", release_md.gsub("{{version}}", version))
-  Zip::File.open("./release/vintage-#{version}.au2pkg.zip", create: true) do |zipfile|
+  Zip::File.open("./release/clipboard-#{version}.au2pkg.zip", create: true) do |zipfile|
     zipfile.mkdir("Plugin")
     zipfile.add("Plugin/clipboard.aux2", "./target/release/clipboard_aux2.dll")
     zipfile.mkdir("Language")
