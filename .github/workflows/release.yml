@@ -68,5 +68,5 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}
           body_path: ./release/README.md
           files: |
-            ./release/clipboard-*.au2pkg.zip
+            ./release/clipboard-aux2-v*.au2pkg.zip
             ./release/THIRD_PARTY_NOTICES.md
