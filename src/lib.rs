@@ -47,6 +47,52 @@ impl ClipboardAux {
         let edit_handle = EDIT_HANDLE
             .get()
             .expect("EditHandle should be initialized before calling this method");
+        let maybe_files = clipboard.get().file_list();
+        if let Ok(files) = maybe_files {
+            let mut layer = edit_section.info.layer;
+            let mut errors = vec![];
+            for file in files {
+                while !can_place_at(edit_section, layer, edit_section.info.frame)? {
+                    layer += 1;
+                }
+                if !edit_section.is_support_media_file(
+                    file.to_string_lossy(),
+                    aviutl2::generic::MediaFileSupportMode::ExtensionOnly,
+                )? {
+                    errors.push((
+                        file.to_string_lossy().to_string(),
+                        "対応していないファイル形式です",
+                    ));
+                    continue;
+                }
+                if edit_section
+                    .create_object_from_media_file(
+                        file.to_string_lossy(),
+                        layer,
+                        edit_section.info.frame,
+                        None,
+                    )
+                    .is_err()
+                {
+                    errors.push((
+                        file.to_string_lossy().to_string(),
+                        "オブジェクトの作成に失敗しました",
+                    ));
+                } else {
+                    layer += 1;
+                }
+            }
+            if !errors.is_empty() {
+                let mut message = tr("以下のファイルの貼り付けに失敗しました:");
+                message.push('\n');
+                for (file, err) in errors {
+                    message.push_str(&format!("- {}: {}\n", file, tr(err)));
+                }
+                anyhow::bail!(message);
+            }
+            return Ok(());
+        }
+
         let maybe_img = clipboard.get_image();
         if let Ok(img) = maybe_img {
             let image_dir = get_default_image_dir(edit_handle, edit_section);
@@ -75,12 +121,13 @@ impl ClipboardAux {
                 .save(&file_path)
                 .context(tr("画像ファイルの保存に失敗しました"))?;
 
-            edit_section.create_object_from_media_file(
+            let obj = edit_section.create_object_from_media_file(
                 file_path.to_string_lossy(),
                 edit_section.info.layer,
                 edit_section.info.frame,
                 None,
             )?;
+            edit_section.focus_object(&obj)?;
 
             Ok(())
         } else if let Ok(text) = clipboard.get_text() {
@@ -91,6 +138,7 @@ impl ClipboardAux {
                 None,
             )?;
             edit_section.set_object_effect_item(&new_text, "テキスト", 0, "テキスト", &text)?;
+            edit_section.focus_object(&new_text)?;
 
             Ok(())
         } else {
@@ -145,6 +193,19 @@ fn get_default_image_dir(
                 .join("Pictures")
         });
         home_dir.join("clipboard.aux2")
+    }
+}
+
+fn can_place_at(
+    edit_section: &mut aviutl2::generic::EditSection,
+    layer: usize,
+    frame: usize,
+) -> aviutl2::AnyResult<bool> {
+    let next_object = edit_section.find_object_after(layer, frame)?;
+    if let Some(obj) = next_object {
+        Ok(edit_section.object(&obj).get_layer_frame()?.start > frame)
+    } else {
+        Ok(true)
     }
 }
 

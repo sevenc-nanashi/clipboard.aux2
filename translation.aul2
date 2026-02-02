@@ -1,5 +1,7 @@
 [clipboard.aux2]
-; TODO: この2つはなぜか動かない...
+; TODO: メニューの翻訳が動かない...
+clipboard.aux2\貼り付け=clipboard.aux2\Paste
+clipboard.aux2\貼り付け=clipboard.aux2\Paste
 [clipboard.aux2] 貼り付け=[clipboard.aux2] Paste
 [clipboard.aux2] ファイルの保存先を指定=[clipboard.aux2] Set file save location
 
