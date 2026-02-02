@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 require "bundler/setup"
 
+def crlfify(file_path)
+  content = File.read(file_path)
+  crlf_content = content.gsub(/\r?\n/, "\r\n")
+  File.write(file_path, crlf_content)
+end
+
 desc "ビルドします"
 task :build do
   sh "cargo build --release"
@@ -14,9 +20,15 @@ task :release => [:build] do
   version = Tomlrb.load_file("./Cargo.toml")["package"]["version"]
   rm_rf "release" if Dir.exist?("release")
   mkdir "release"
+
   release_md = File.read("./release.md")
   File.write("./release/README.md", release_md.gsub("{{version}}", version))
+
+  sh "cargo about generate ./about.package.hbs -o ./release/package.txt"
+  crlfify("./release/package.txt")
+
   Zip::File.open("./release/clipboard-#{version}.au2pkg.zip", create: true) do |zipfile|
+    zipfile.add("package.txt", "./release/package.txt")
     zipfile.mkdir("Plugin")
     zipfile.add("Plugin/clipboard.aux2", "./target/release/clipboard_aux2.dll")
     zipfile.mkdir("Language")
