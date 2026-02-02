@@ -1,0 +1,26 @@
+#!schema: ./development/aviutl2.schema.json
+# 設定ファイルについては https://github.com/sevenc-nanashi/aviutl2-cli を参照してください。
+[project]
+name = "clipboard.aux2"
+version = "0.1.0"
+
+[artifacts.clipboard_aux2]
+destination = "Plugin/clipboard.aux2"
+
+[artifacts.clipboard_aux2.profiles.debug]
+build = "cargo build"
+source = "target/debug/clipboard_aux2.dll"
+
+[artifacts.clipboard_aux2.profiles.release]
+build = "cargo build --release"
+source = "target/release/clipboard_aux2.dll"
+
+[artifacts.clipboard_aul2]
+source = "./i18n/English.clipboard.aul2"
+destination = "Language/English.clipboard.aul2"
+
+[development]
+aviutl2_version = "2.00beta31"
+
+[release]
+package_template = "./release/package.txt"

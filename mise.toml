@@ -1,4 +1,5 @@
 [tools]
 "cargo:cargo-about" = "latest"
 "cargo:cargo-edit" = "latest"
+"github:sevenc-nanashi/aviutl2-cli" = "0.1.7"
 ruby = "4"
