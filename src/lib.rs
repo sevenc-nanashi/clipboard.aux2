@@ -1,29 +1,42 @@
 use aviutl2::{
     anyhow::{self, Context},
-    ldbg, log,
+    config::translate as tr,
+    ldbg, tracing,
 };
 
 #[aviutl2::plugin(GenericPlugin)]
 #[derive(Debug)]
 struct ClipboardAux {}
 
-static EDIT_HANDLE: std::sync::OnceLock<aviutl2::generic::EditHandle> = std::sync::OnceLock::new();
+static EDIT_HANDLE: aviutl2::generic::GlobalEditHandle = aviutl2::generic::GlobalEditHandle::new();
 
 impl aviutl2::generic::GenericPlugin for ClipboardAux {
     fn new(_info: aviutl2::AviUtl2Info) -> aviutl2::AnyResult<Self> {
-        aviutl2::logger::LogBuilder::new()
-            .filter_level(if cfg!(debug_assertions) {
-                log::LevelFilter::Debug
+        aviutl2::tracing_subscriber::fmt()
+            .with_max_level(if cfg!(debug_assertions) {
+                tracing::Level::DEBUG
             } else {
-                log::LevelFilter::Info
+                tracing::Level::INFO
             })
+            .event_format(aviutl2::logger::AviUtl2Formatter)
+            .with_writer(aviutl2::logger::AviUtl2LogWriter)
             .init();
         Ok(Self {})
     }
 
+    fn plugin_info(&self) -> aviutl2::generic::GenericPluginTable {
+        aviutl2::generic::GenericPluginTable {
+            name: "clipboard.aux2".to_string(),
+            information: format!(
+                "Copy Alias and Paste Media from Clipboard / v{} / https://github.com/sevenc-nanashi/clipboard.aux2",
+                env!("CARGO_PKG_VERSION")
+            ),
+        }
+    }
+
     fn register(&mut self, registry: &mut aviutl2::generic::HostAppHandle) {
         registry.register_menus::<Self>();
-        EDIT_HANDLE.get_or_init(|| registry.create_edit_handle());
+        EDIT_HANDLE.init(registry.create_edit_handle());
     }
 }
 
@@ -33,180 +46,165 @@ static SEPARATOR: &str = "\n----------------\n";
 #[aviutl2::generic::menus]
 impl ClipboardAux {
     #[edit(name = "clipboard.aux2\\コピー")]
-    fn copy_edit(
-        &mut self,
-        edit_section: &mut aviutl2::generic::EditSection,
-    ) -> aviutl2::AnyResult<()> {
-        self.copy_object(edit_section)
+    fn copy_edit(&mut self) -> aviutl2::AnyResult<()> {
+        self.copy_object()
     }
 
     #[edit(name = "clipboard.aux2\\貼り付け")]
-    fn paste_edit(
-        &mut self,
-        edit_section: &mut aviutl2::generic::EditSection,
-    ) -> aviutl2::AnyResult<()> {
-        self.paste_layer(edit_section)
+    fn paste_edit(&mut self) -> aviutl2::AnyResult<()> {
+        self.paste_layer()
     }
 
     #[layer(name = "[clipboard.aux2] 貼り付け")]
-    fn paste_layer(
-        &mut self,
-        edit_section: &mut aviutl2::generic::EditSection,
-    ) -> aviutl2::AnyResult<()> {
+    fn paste_layer(&mut self) -> aviutl2::AnyResult<()> {
         let mut clipboard =
             arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
-        let edit_handle = EDIT_HANDLE
-            .get()
-            .expect("EditHandle should be initialized before calling this method");
         let maybe_files = clipboard.get().file_list();
-        if let Ok(files) = maybe_files {
-            let mut layer = edit_section.info.layer;
-            let mut errors = vec![];
-            for file in files {
-                while !can_place_at(edit_section, layer, edit_section.info.frame)? {
-                    layer += 1;
+        EDIT_HANDLE.call_edit_section(|edit_section| {
+            if let Ok(files) = maybe_files {
+                let mut layer = edit_section.info.layer;
+                let mut errors = vec![];
+                for file in files {
+                    while !can_place_at(edit_section, layer, edit_section.info.frame)? {
+                        layer += 1;
+                    }
+                    if !edit_section.is_support_media_file(
+                        &file,
+                        aviutl2::generic::MediaFileSupportMode::ExtensionOnly,
+                    )? {
+                        errors.push((
+                            file.to_string_lossy().to_string(),
+                            "対応していないファイル形式です",
+                        ));
+                        continue;
+                    }
+                    if edit_section
+                        .create_object_from_media_file(&file, layer, edit_section.info.frame, None)
+                        .is_err()
+                    {
+                        errors.push((
+                            file.to_string_lossy().to_string(),
+                            "オブジェクトの作成に失敗しました",
+                        ));
+                    } else {
+                        layer += 1;
+                    }
                 }
-                if !edit_section.is_support_media_file(
-                    file.to_string_lossy(),
+                if !errors.is_empty() {
+                    let mut message = tr("以下のファイルの貼り付けに失敗しました:");
+                    message.push('\n');
+                    for (file, err) in errors {
+                        message.push_str(&format!("- {}: {}\n", file, tr(err)));
+                    }
+                    anyhow::bail!(message);
+                }
+                return Ok(());
+            }
+
+            let maybe_img = clipboard.get_image();
+            if let Ok(img) = maybe_img {
+                let image_dir = get_default_image_dir(edit_section);
+                let supports_webp = edit_section.is_support_media_file(
+                    "z:/test.webp",
                     aviutl2::generic::MediaFileSupportMode::ExtensionOnly,
-                )? {
-                    errors.push((
-                        file.to_string_lossy().to_string(),
-                        "対応していないファイル形式です",
-                    ));
-                    continue;
+                )?;
+                if !image_dir.exists() {
+                    std::fs::create_dir_all(&image_dir)
+                        .context(tr("画像保存用フォルダの作成に失敗しました"))?;
                 }
-                if edit_section
-                    .create_object_from_media_file(
-                        file.to_string_lossy(),
-                        layer,
-                        edit_section.info.frame,
-                        None,
-                    )
-                    .is_err()
-                {
-                    errors.push((
-                        file.to_string_lossy().to_string(),
-                        "オブジェクトの作成に失敗しました",
-                    ));
-                } else {
-                    layer += 1;
-                }
-            }
-            if !errors.is_empty() {
-                let mut message = tr("以下のファイルの貼り付けに失敗しました:");
-                message.push('\n');
-                for (file, err) in errors {
-                    message.push_str(&format!("- {}: {}\n", file, tr(err)));
-                }
-                anyhow::bail!(message);
-            }
-            return Ok(());
-        }
+                let file_path = {
+                    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                    let extension = if supports_webp { "webp" } else { "png" };
+                    image_dir.join(format!("clipboard_{}.{}", timestamp, extension))
+                };
+                let image = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+                    img.width as _,
+                    img.height as _,
+                    img.bytes.into_owned(),
+                )
+                .context(tr(
+                    "クリップボードから取得した画像データの処理に失敗しました",
+                ))?;
+                image
+                    .save(&file_path)
+                    .context(tr("画像ファイルの保存に失敗しました"))?;
 
-        let maybe_img = clipboard.get_image();
-        if let Ok(img) = maybe_img {
-            let image_dir = get_default_image_dir(edit_handle, edit_section);
-            let supports_webp = edit_section.is_support_media_file(
-                "z:/test.webp",
-                aviutl2::generic::MediaFileSupportMode::ExtensionOnly,
-            )?;
-            if !image_dir.exists() {
-                std::fs::create_dir_all(&image_dir)
-                    .context(tr("画像保存用フォルダの作成に失敗しました"))?;
-            }
-            let file_path = {
-                let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-                let extension = if supports_webp { "webp" } else { "png" };
-                image_dir.join(format!("clipboard_{}.{}", timestamp, extension))
-            };
-            let image = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
-                img.width as _,
-                img.height as _,
-                img.bytes.into_owned(),
-            )
-            .context(tr(
-                "クリップボードから取得した画像データの処理に失敗しました",
-            ))?;
-            image
-                .save(&file_path)
-                .context(tr("画像ファイルの保存に失敗しました"))?;
-
-            let obj = edit_section.create_object_from_media_file(
-                file_path.to_string_lossy(),
-                edit_section.info.layer,
-                edit_section.info.frame,
-                None,
-            )?;
-            edit_section.focus_object(&obj)?;
-
-            Ok(())
-        } else if let Ok(text) = clipboard.get_text() {
-            if text.starts_with(MARKER) {
-                let aliases_str = &text[MARKER.len()..];
-                let aliases: Vec<&str> = aliases_str.split(SEPARATOR).collect();
-                ldbg!(aliases);
-            } else {
-                let new_text = edit_section.create_object(
-                    "テキスト",
+                let obj = edit_section.create_object_from_media_file(
+                    file_path,
                     edit_section.info.layer,
                     edit_section.info.frame,
                     None,
                 )?;
-                edit_section.set_object_effect_item(&new_text, "テキスト", 0, "テキスト", &text)?;
-                edit_section.focus_object(&new_text)?;
-            }
+                edit_section.focus_object(&obj)?;
 
-            Ok(())
-        } else {
-            anyhow::bail!(tr("クリップボードに画像またはテキストが見つかりません"));
-        }
+                Ok(())
+            } else if let Ok(text) = clipboard.get_text() {
+                if let Some(aliases_str) = text.strip_prefix(MARKER) {
+                    let aliases: Vec<&str> = aliases_str.split(SEPARATOR).collect();
+                    ldbg!(aliases);
+                } else {
+                    let new_text = edit_section.create_object(
+                        "テキスト",
+                        edit_section.info.layer,
+                        edit_section.info.frame,
+                        None,
+                    )?;
+                    edit_section.set_object_effect_item(
+                        &new_text,
+                        "テキスト",
+                        0,
+                        "テキスト",
+                        &text,
+                    )?;
+                    edit_section.focus_object(&new_text)?;
+                }
+
+                Ok(())
+            } else {
+                anyhow::bail!(tr("クリップボードに画像またはテキストが見つかりません"));
+            }
+        })?
     }
 
     #[object(name = "[clipboard.aux2] コピー")]
-    fn copy_object(
-        &mut self,
-        edit_section: &mut aviutl2::generic::EditSection,
-    ) -> aviutl2::AnyResult<()> {
-        let objects = edit_section.get_selected_objects()?;
-        if objects.is_empty() {
-            anyhow::bail!(tr("コピーするオブジェクトが選択されていません"));
-        }
+    fn copy_object(&mut self) -> aviutl2::AnyResult<()> {
+        EDIT_HANDLE.call_edit_section(|edit_section| {
+            let objects = edit_section.get_selected_objects()?;
+            if objects.is_empty() {
+                anyhow::bail!(tr("コピーするオブジェクトが選択されていません"));
+            }
 
-        let aliases: Vec<String> = objects
-            .iter()
-            .filter_map(|obj| edit_section.object(obj).get_alias().ok())
-            .collect();
+            let aliases: Vec<String> = objects
+                .iter()
+                .filter_map(|obj| edit_section.object(obj).get_alias().ok())
+                .collect();
 
-        if aliases.is_empty() {
-            anyhow::bail!(tr("コピーするオブジェクトのエイリアスの取得に失敗しました"));
-        }
+            if aliases.is_empty() {
+                anyhow::bail!(tr("コピーするオブジェクトのエイリアスの取得に失敗しました"));
+            }
 
-        let buffer = format!("{}{}", MARKER, aliases.join(SEPARATOR));
-        let mut clipboard =
-            arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
-        clipboard
-            .set_text(buffer)
-            .context(tr("クリップボードへの書き込みに失敗しました"))?;
+            let buffer = format!("{}{}", MARKER, aliases.join(SEPARATOR));
+            let mut clipboard =
+                arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
+            clipboard
+                .set_text(buffer)
+                .context(tr("クリップボードへの書き込みに失敗しました"))?;
 
-        Ok(())
+            Ok(())
+        })?
     }
 
     #[config(name = "[clipboard.aux2] ファイルの保存先を指定")]
     fn set_aux2_path(&mut self, _hwnd: aviutl2::Win32WindowHandle) -> aviutl2::AnyResult<()> {
-        let edit_handle = EDIT_HANDLE
-            .get()
-            .expect("EditHandle should be initialized before calling this method");
-        let current_dir =
-            edit_handle.call_edit_section(|edit| get_default_image_dir(edit_handle, edit))?;
+        let current_dir = EDIT_HANDLE.call_edit_section(get_default_image_dir)?;
         let maybe_new_dir = rfd::FileDialog::new()
             .set_title(tr("保存先フォルダを選択"))
             .set_directory(current_dir)
             .pick_folder();
         if let Some(new_dir) = maybe_new_dir {
-            edit_handle
+            EDIT_HANDLE
                 .call_edit_section(|edit| {
-                    let mut proj = edit.get_project_file(edit_handle);
+                    let mut proj = edit.get_project_file(&EDIT_HANDLE);
                     proj.set_param_string("save_image_to", new_dir.to_string_lossy().as_ref())
                 })?
                 .context(tr("保存先の設定に失敗しました"))?;
@@ -215,11 +213,8 @@ impl ClipboardAux {
     }
 }
 
-fn get_default_image_dir(
-    edit_handle: &aviutl2::generic::EditHandle,
-    edit_section: &mut aviutl2::generic::EditSection,
-) -> std::path::PathBuf {
-    let proj = edit_section.get_project_file(edit_handle);
+fn get_default_image_dir(edit_section: &mut aviutl2::generic::EditSection) -> std::path::PathBuf {
+    let proj = edit_section.get_project_file(&EDIT_HANDLE);
 
     if let Some(save_path) = proj
         .get_param_string("save_image_to")
@@ -253,10 +248,6 @@ fn can_place_at(
     } else {
         Ok(true)
     }
-}
-
-fn tr(s: &str) -> String {
-    aviutl2::config::translate(s).expect("source contains null byte")
 }
 
 aviutl2::register_generic_plugin!(ClipboardAux);
