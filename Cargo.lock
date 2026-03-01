@@ -153,9 +153,9 @@ dependencies = [
 
 [[package]]
 name = "aviutl2"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71d8a0afbb5b816521c557798c04849d99596e1058bbcf2be4e4be670831ec68"
+checksum = "e11d2efac0de7fc09b9f40aa909d12519f45f1a220b820893a943d9b7c5d7c2f"
 dependencies = [
  "anyhow",
  "aviutl2-alias",
@@ -181,9 +181,9 @@ dependencies = [
 
 [[package]]
 name = "aviutl2-alias"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "124a28630afa36feb6c3d3aa841c33219907b41f1b617e28ca719e100f64c153"
+checksum = "e2e1934f7cae8b89d476418df85ac5661d4a723676ce65a2c5055624034325dc"
 dependencies = [
  "duplicate",
  "indexmap",
@@ -192,9 +192,9 @@ dependencies = [
 
 [[package]]
 name = "aviutl2-macros"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a847e02a9cd6d59edc33a1d07082f5bcf090cd94ff4a500aafe9337da7e8c18c"
+checksum = "c0f822fd00e29f7d4fd44f58bca935ef0bdaf3e96f7a4085949076c36e792d72"
 dependencies = [
  "decimal-rs",
  "either",
@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "aviutl2-sys"
-version = "0.20.0"
+version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928f2494ac29af9e30ed04a91393e4bc20ff8604b6f52ce9f9fb76c43ef709cf"
+checksum = "acfedd696ea6a98ce37ac0d976ae5b99a61baaae04b89f6c23d0baed753a7fba"
 dependencies = [
  "windows-sys 0.61.2",
 ]
