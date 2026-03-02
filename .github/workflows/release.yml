@@ -41,7 +41,7 @@ jobs:
 
       - name: Update Cargo.toml
         run: |
-          cargo set-version ${{ github.event.inputs.version }}
+          cargo set-version "${{ github.event.inputs.version }}"
           cargo update --workspace
 
       - name: Prepare release
@@ -58,9 +58,8 @@ jobs:
           git commit -m "release: v${{ github.event.inputs.version }}"
           git tag ${{ github.event.inputs.version }}
 
-      - name: Push Tag
-        run: |
-          git push
+          git push origin main
+          git push origin ${{ github.event.inputs.version }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
