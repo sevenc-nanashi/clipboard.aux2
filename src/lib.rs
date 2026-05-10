@@ -55,7 +55,7 @@ impl ClipboardAux {
         self.paste_layer()
     }
 
-    #[layer(name = "[clipboard.aux2] 貼り付け")]
+    #[layer(name = "clipboard.aux2\\貼り付け")]
     fn paste_layer(&mut self) -> aviutl2::AnyResult<()> {
         let mut clipboard =
             arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
@@ -135,7 +135,7 @@ impl ClipboardAux {
                     edit_section.info.frame,
                     None,
                 )?;
-                edit_section.focus_object(&obj)?;
+                edit_section.focus_object(obj)?;
 
                 Ok(())
             } else if let Ok(text) = clipboard.get_text() {
@@ -150,13 +150,13 @@ impl ClipboardAux {
                         None,
                     )?;
                     edit_section.set_object_effect_item(
-                        &new_text,
+                        new_text,
                         "テキスト",
                         0,
                         "テキスト",
                         &text,
                     )?;
-                    edit_section.focus_object(&new_text)?;
+                    edit_section.focus_object(new_text)?;
                 }
 
                 Ok(())
@@ -166,7 +166,7 @@ impl ClipboardAux {
         })?
     }
 
-    #[object(name = "[clipboard.aux2] コピー")]
+    #[object(name = "clipboard.aux2\\コピー")]
     fn copy_object(&mut self) -> aviutl2::AnyResult<()> {
         EDIT_HANDLE.call_edit_section(|edit_section| {
             let objects = edit_section.get_selected_objects()?;
@@ -176,7 +176,7 @@ impl ClipboardAux {
 
             let aliases: Vec<String> = objects
                 .iter()
-                .filter_map(|obj| edit_section.object(obj).get_alias().ok())
+                .filter_map(|obj| edit_section.object(*obj).get_alias().ok())
                 .collect();
 
             if aliases.is_empty() {
@@ -244,7 +244,7 @@ fn can_place_at(
 ) -> aviutl2::AnyResult<bool> {
     let next_object = edit_section.find_object_after(layer, frame)?;
     if let Some(obj) = next_object {
-        Ok(edit_section.object(&obj).get_layer_frame()?.start > frame)
+        Ok(edit_section.object(obj).get_layer_frame()?.start > frame)
     } else {
         Ok(true)
     }
