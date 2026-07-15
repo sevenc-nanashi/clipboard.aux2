@@ -1,7 +1,7 @@
 use aviutl2::{
     anyhow::{self, Context},
     config::translate as tr,
-    ldbg, tracing,
+    tracing,
 };
 
 #[aviutl2::plugin(GenericPlugin)]
@@ -40,16 +40,8 @@ impl aviutl2::generic::GenericPlugin for ClipboardAux {
     }
 }
 
-static MARKER: &str = "clipboard.aux2:";
-static SEPARATOR: &str = "\n----------------\n";
-
 #[aviutl2::generic::menus]
 impl ClipboardAux {
-    #[edit(name = "clipboard.aux2\\コピー")]
-    fn copy_edit(&mut self) -> aviutl2::AnyResult<()> {
-        self.copy_object()
-    }
-
     #[edit(name = "clipboard.aux2\\貼り付け")]
     fn paste_edit(&mut self) -> aviutl2::AnyResult<()> {
         self.paste_layer()
@@ -139,58 +131,19 @@ impl ClipboardAux {
 
                 Ok(())
             } else if let Ok(text) = clipboard.get_text() {
-                if let Some(aliases_str) = text.strip_prefix(MARKER) {
-                    let aliases: Vec<&str> = aliases_str.split(SEPARATOR).collect();
-                    ldbg!(aliases);
-                } else {
-                    let new_text = edit_section.create_object(
-                        "テキスト",
-                        edit_section.info.layer,
-                        edit_section.info.frame,
-                        None,
-                    )?;
-                    edit_section.set_object_effect_item(
-                        new_text,
-                        "テキスト",
-                        0,
-                        "テキスト",
-                        &text,
-                    )?;
-                    edit_section.focus_object(new_text)?;
-                }
+                let new_text = edit_section.create_object(
+                    "テキスト",
+                    edit_section.info.layer,
+                    edit_section.info.frame,
+                    None,
+                )?;
+                edit_section.set_object_effect_item(new_text, "テキスト", 0, "テキスト", &text)?;
+                edit_section.focus_object(new_text)?;
 
                 Ok(())
             } else {
                 anyhow::bail!(tr("クリップボードに画像またはテキストが見つかりません"));
             }
-        })?
-    }
-
-    #[object(name = "clipboard.aux2\\コピー")]
-    fn copy_object(&mut self) -> aviutl2::AnyResult<()> {
-        EDIT_HANDLE.call_edit_section(|edit_section| {
-            let objects = edit_section.get_selected_objects()?;
-            if objects.is_empty() {
-                anyhow::bail!(tr("コピーするオブジェクトが選択されていません"));
-            }
-
-            let aliases: Vec<String> = objects
-                .iter()
-                .filter_map(|obj| edit_section.object(*obj).get_alias().ok())
-                .collect();
-
-            if aliases.is_empty() {
-                anyhow::bail!(tr("コピーするオブジェクトのエイリアスの取得に失敗しました"));
-            }
-
-            let buffer = format!("{}{}", MARKER, aliases.join(SEPARATOR));
-            let mut clipboard =
-                arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
-            clipboard
-                .set_text(buffer)
-                .context(tr("クリップボードへの書き込みに失敗しました"))?;
-
-            Ok(())
         })?
     }
 
