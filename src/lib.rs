@@ -147,6 +147,84 @@ impl ClipboardAux {
         })?
     }
 
+    #[object_item(name = "clipboard.aux2\\貼り付け")]
+    fn paste_layer_obj(
+        &mut self,
+        object: aviutl2::generic::ObjectHandle,
+        effect_name: &str,
+        effect_index: usize,
+        item_name: &str,
+    ) -> aviutl2::AnyResult<()> {
+        let mut clipboard =
+            arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
+        EDIT_HANDLE.call_edit_section(|edit_section| {
+            let maybe_files = clipboard.get().file_list();
+            if let Ok(files) = maybe_files {
+                let file = files
+                    .first()
+                    .context("クリップボードにファイルが見つかりません")?;
+                edit_section.set_object_effect_item(
+                    object,
+                    effect_name,
+                    effect_index,
+                    item_name,
+                    &file.to_string_lossy(),
+                )?;
+            }
+
+            let maybe_img = clipboard.get_image();
+            if let Ok(img) = maybe_img {
+                let image_dir = get_default_image_dir(edit_section);
+                let supports_webp = edit_section.is_support_media_file(
+                    "z:/test.webp",
+                    aviutl2::generic::MediaFileSupportMode::ExtensionOnly,
+                )?;
+                if !image_dir.exists() {
+                    std::fs::create_dir_all(&image_dir)
+                        .context(tr("画像保存用フォルダの作成に失敗しました"))?;
+                }
+                let file_path = {
+                    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                    let extension = if supports_webp { "webp" } else { "png" };
+                    image_dir.join(format!("clipboard_{}.{}", timestamp, extension))
+                };
+                let image = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+                    img.width as _,
+                    img.height as _,
+                    img.bytes.into_owned(),
+                )
+                .context(tr(
+                    "クリップボードから取得した画像データの処理に失敗しました",
+                ))?;
+                image
+                    .save(&file_path)
+                    .context(tr("画像ファイルの保存に失敗しました"))?;
+
+                edit_section.set_object_effect_item(
+                    object,
+                    effect_name,
+                    effect_index,
+                    item_name,
+                    &file_path.to_string_lossy(),
+                )?;
+
+                Ok(())
+            } else if let Ok(text) = clipboard.get_text() {
+                edit_section.set_object_effect_item(
+                    object,
+                    effect_name,
+                    effect_index,
+                    item_name,
+                    &text,
+                )?;
+
+                Ok(())
+            } else {
+                anyhow::bail!(tr("クリップボードに画像またはテキストが見つかりません"));
+            }
+        })?
+    }
+
     #[config(name = "[clipboard.aux2] ファイルの保存先を指定")]
     fn set_aux2_path(&mut self, _hwnd: aviutl2::Win32WindowHandle) -> aviutl2::AnyResult<()> {
         let current_dir = EDIT_HANDLE.call_edit_section(get_default_image_dir)?;
