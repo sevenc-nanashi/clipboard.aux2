@@ -44,11 +44,9 @@ jobs:
           cargo set-version "${{ github.event.inputs.version }}"
           cargo update --workspace
 
-      - name: Prepare release
-        shell: bash
+      - name: Build package
         run: |
-          bundle install
-          bundle exec rake release
+          au2 release --set-version "${{ github.event.inputs.version }}"
 
       - name: Commit version change
         run: |
@@ -65,7 +63,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version }}
-          body_path: ./release/README.md
+          body: |
+            `clipboard-v${{ github.event.inputs.version }}.au2pkg.zip`をAviUtl2のプレビューにドラッグ&ドロップしてください。
           files: |
             ./release/sevenc-nanashi.clipboard-aux2-v*.au2pkg.zip
-            ./release/THIRD_PARTY_NOTICES.md
