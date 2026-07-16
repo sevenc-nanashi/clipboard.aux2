@@ -147,6 +147,34 @@ impl ClipboardAux {
         })?
     }
 
+    #[object_item(name = "clipboard.aux2\\コピー")]
+    fn copy_layer_obj(
+        &mut self,
+        object: aviutl2::generic::ObjectHandle,
+        effect_name: &str,
+        effect_index: usize,
+        item_name: &str,
+    ) -> aviutl2::AnyResult<()> {
+        let mut clipboard =
+            arboard::Clipboard::new().context(tr("クリップボードの初期化に失敗しました"))?;
+        EDIT_HANDLE.call_edit_section(|edit_section| {
+            let item_value = edit_section.get_object_effect_item(
+                object,
+                effect_name,
+                effect_index,
+                item_name,
+            )?;
+            clipboard
+                .set_text(
+                    &item_value
+                        .replace("\\n", "\n")
+                        .replace("\\t", "\t")
+                        .replace("\\\\", "\\"),
+                )
+                .context(tr("クリップボードへのコピーに失敗しました"))
+        })?
+    }
+
     #[object_item(name = "clipboard.aux2\\貼り付け")]
     fn paste_layer_obj(
         &mut self,
