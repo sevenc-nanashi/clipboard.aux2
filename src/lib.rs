@@ -127,7 +127,7 @@ impl ClipboardAux {
                     edit_section.info.frame,
                     None,
                 )?;
-                edit_section.focus_object(obj)?;
+                edit_section.set_focus_object(Some(obj))?;
 
                 Ok(())
             } else if let Ok(text) = clipboard.get_text() {
@@ -138,7 +138,7 @@ impl ClipboardAux {
                     None,
                 )?;
                 edit_section.set_object_effect_item(new_text, "テキスト", 0, "テキスト", &text)?;
-                edit_section.focus_object(new_text)?;
+                edit_section.set_focus_object(Some(new_text))?;
 
                 Ok(())
             } else {

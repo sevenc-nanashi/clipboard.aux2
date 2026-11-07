@@ -1,8 +1,4 @@
 [clipboard.aux2]
-clipboard.aux2\貼り付け=clipboard.aux2\Paste
-[clipboard.aux2] 貼り付け=[clipboard.aux2] Paste
-[clipboard.aux2] ファイルの保存先を指定=[clipboard.aux2] Set file save location
-
 クリップボードの初期化に失敗しました=Failed to initialize clipboard
 画像保存用フォルダの作成に失敗しました=Failed to create image save folder
 クリップボードから取得した画像データの処理に失敗しました=Failed to process image data from clipboard
@@ -15,3 +11,8 @@ clipboard.aux2\貼り付け=clipboard.aux2\Paste
 
 保存先フォルダを選択=Select destination folder
 保存先の設定に失敗しました=Failed to set destination folder
+
+[Menu]
+コピー=Copy
+貼り付け=Paste
+[clipboard.aux2] ファイルの保存先を指定=[clipboard.aux2] Set file save location
